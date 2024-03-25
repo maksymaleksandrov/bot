@@ -57,3 +57,24 @@ async def left_bot(message: types.Message):
         for admin in admins:
             await bot.send_message(admin, f'Бот был удален из чата "{title}"')
 
+@dp.message_handler(content_types=['migrate_to_chat_id'])
+async def migrate_group_to_supergroup(message: types.Message):
+    bot_obj = await bot.get_me()
+    migrate_from_chat_id = message.chat.id
+    migrate_to_chat_id = message.migrate_to_chat_id
+    title = message.chat.title
+
+    session = sessionmaker(bind=engine)()
+    chat = session.query(Chat).get(migrate_from_chat_id)
+    if chat is None:
+        logging.error(f'Ошибка при миграции чата с id "{migrate_from_chat_id}" на id "{migrate_to_chat_id}". Title чата - "{title}"')
+        for admin in admins:
+            await bot.send_message(admin, f'Ошибка при миграции чата с id "{migrate_from_chat_id}" на id "{migrate_to_chat_id}". Title чата - "{title}". Чат не найден.')
+    else:
+        session.query(Chat).update({"chat_id": migrate_to_chat_id})
+        session.commit()
+        logging.info(f'Миграция чата "{title}" была проведена успешно - новый айди "{migrate_to_chat_id}"')
+        session.close()
+        for admin in admins:
+            await bot.send_message(admin, f'Миграция чата "{title}" была проведена успешно - новый айди "{migrate_to_chat_id}"')
+
